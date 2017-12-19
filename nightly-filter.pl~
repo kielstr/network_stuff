@@ -1,0 +1,57 @@
+#!/usr/bin/perl -w
+
+use strict;
+
+my $flag = $ARGV[0];
+
+die "usage: $0 -A|-D\n" unless $flag =~ /^\-[A|D]$/;
+
+my @addresses = (
+
+  # isac-laptop
+  '192.168.1.7',
+  '192.168.2.7',
+  
+  # isac-playstation
+  '192.168.1.8',
+  '192.168.2.8',
+
+  # isac-oldphone
+  '192.168.1.9',
+  '192.168.2.9',
+  
+  # isac-ipad
+  '192.168.1.12',
+  '192.168.2.12',
+
+  # isac-newphone
+  '192.168.1.13',
+  '192.168.2.13',
+  
+  # evie-laptop
+  '192.168.1.20',
+  '192.168.2.20',
+
+  # eive-tablet
+  '192.168.1.21',
+  '192.168.2.21',
+
+  # evie-?
+  '192.168.1.22',
+  '192.168.2.22',
+
+  # evie-ipad
+  '192.168.1.23',
+  '192.168.2.23',
+);
+
+foreach my $addr ( @addresses) {
+  system '/sbin/iptables ' . $flag . ' FORWARD -s ' . $addr . ' -j DROP;';
+}
+
+system '/sbin/iptables-save > /etc/iptables/rules.v4';
+
+
+system '/sbin/iptables -L';
+
+

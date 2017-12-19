@@ -1,0 +1,22 @@
+
+LAN_DEVICE="eth0";
+LAN_SUBNET_NAT="10.0.0.0/24";
+LAN_SUBNET="192.168.1.6";
+LAN_TOTAL_BANDWIDTH="100mbit";
+ROUTER_ADDRESS="192.168.1.10";
+USER_LIMIT="1mbit";
+
+tc qdisc del dev $LAN_DEVICE root
+tc qdisc add dev $LAN_DEVICE root handle 2: cbq avpkt 1000 bandwidth $LAN_TOTAL_BANDWIDTH
+tc class add dev $LAN_DEVICE parent 2: classid 2:1 cbq rate $USER_LIMIT allot 1500 prio 0 bounded isolated 
+tc filter add dev $LAN_DEVICE parent 2:0 protocol ip prio 1 handle 1 fw classid 2:1
+
+iptables -t raw -F
+iptables -t nat -F 
+iptables -t mangle -F 
+iptables -F
+
+
+iptables -t mangle -A FORWARD -d $LAN_SUBNET -j MARK --set-mark 1
+
+#iptables -t nat -A POSTROUTING -s $LAN_SUBNET -o $LAN_DEVICE -j SNAT --to-source $ROUTER_ADDRESS
