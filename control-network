@@ -1,3 +1,5 @@
+# cmd to inspect output 
+# watch tc -s -d class show dev eth0
 
 ### IPTABLES ####
 #
@@ -77,11 +79,11 @@ echo "Kiel(kiels-phone) has be rate limitted to $KS_RATE with a ceiling of $KS_R
 #
 # Q_ID: 1:20 Sarah (all devices) 
 #
-tc class add dev eth0 parent 1:1 classid 1:20 htb rate 6mbit ceil 7mbit prio 1
+tc class add dev eth0 parent 1:1 classid 1:20 htb rate 6mbit ceil 6mbit prio 1
 
 # Q_ID: 1:21 Sarah (phone) 
 
-tc class add dev eth0 parent 1:20 classid 1:21 htb rate 6mbit ceil 7mbit prio 1
+tc class add dev eth0 parent 1:20 classid 1:21 htb rate 6mbit ceil 6mbit prio 1
 tc filter add dev eth0 parent 1:0 protocol ip prio 1 handle 21 fw classid 1:21
 
 iptables -t mangle -A POSTROUTING -d 192.168.1.50 -j MARK --set-mark 21
@@ -89,7 +91,7 @@ iptables -t mangle -A POSTROUTING -d 192.168.1.50 -j RETURN
 
 # Q_ID: 1:22 Sarah (laptop) 
 
-tc class add dev eth0 parent 1:20 classid 1:22 htb rate 6mbit ceil 7mbit prio 1
+tc class add dev eth0 parent 1:20 classid 1:22 htb rate 6mbit ceil 6mbit prio 1
 tc filter add dev eth0 parent 1:0 protocol ip prio 1 handle 22 fw classid 1:22
 
 iptables -t mangle -A POSTROUTING -d 192.168.1.51 -j MARK --set-mark 22
@@ -185,6 +187,9 @@ tc filter add dev eth0 parent 1:0 protocol ip prio 3 handle 51 fw classid 1:51
 iptables -t mangle -A POSTROUTING -d 192.168.1.40 -j MARK --set-mark 51
 iptables -t mangle -A POSTROUTING -d 192.168.1.40 -j RETURN
 
+iptables -t mangle -A POSTROUTING -d 192.168.1.41 -j MARK --set-mark 51
+iptables -t mangle -A POSTROUTING -d 192.168.1.41 -j RETURN
+
 
 ################################
 # ALL TRAFFIC TO MEDIA DEVICES 
@@ -215,7 +220,11 @@ iptables -t mangle -A POSTROUTING -d 192.168.1.31 -j RETURN
 tc class add dev eth0 parent 1:60 classid 1:63 htb rate 10mbit ceil 10mbit prio 2
 tc filter add dev eth0 parent 1:0 protocol ip prio 2 handle 63 fw classid 1:63
 
-iptables -t mangle -A POSTROUTING -d 192.168.1.32 -j MARK --set-mark 63
+#iptables -t mangle -A POSTROUTING -d 192.168.1.32 -j MARK --set-mark 63
+#iptables -t mangle -A POSTROUTING -d 192.168.1.32 -j RETURN
+
+# Isac is using this laptop
+iptables -t mangle -A POSTROUTING -d 192.168.1.32 -j MARK --set-mark 31
 iptables -t mangle -A POSTROUTING -d 192.168.1.32 -j RETURN
 
 #####################################################
@@ -256,17 +265,146 @@ iptables -t mangle -A PREROUTING ! -s 192.168.2.0/24 -d 192.168.1.10 -j RETURN
 
 # Q_ID: 1:90 -- all internet uploads (all ips)
 
-tc class add dev eth0 parent 1:1 classid 1:90 htb rate 500kbit ceil 1mbit prio 4
-tc filter add dev eth0 parent 1:0 protocol ip prio 4 handle 90 fw classid 1:90
+tc class add dev eth0 parent 1:1 classid 1:90 htb rate 100mbit ceil 100mbit prio 4
 
-iptables -t mangle -A POSTROUTING -s 192.168.1.10 ! -d 10.0.0.0/24 -j MARK --set-mark 90
+# Kiels uploads
+
+tc class add dev eth0 parent 1:90 classid 1:91 htb rate 1mbit ceil 1mbit prio 4
+tc filter add dev eth0 parent 1:0 protocol ip prio 4 handle 91 fw classid 1:91
+
+# Laptop Uploads
+
+# To the internet
+iptables -t mangle -A PREROUTING -s 192.168.1.6 ! -d 10.0.0.0/24 -j MARK --set-mark 91
+iptables -t mangle -A PREROUTING -s 192.168.1.6 ! -d 10.0.0.0/24 -j RETURN
+
+iptables -t mangle -A PREROUTING -s 192.168.1.6 ! -d 192.168.1.0/24 -j MARK --set-mark 91
+iptables -t mangle -A PREROUTING -s 192.168.1.6 ! -d 192.168.1.0/24 -j RETURN
+
+# Local traffic.
+iptables -t mangle -A PREROUTING -s 192.168.1.6  -d 10.0.0.0/24 -j MARK --set-mark 90
+iptables -t mangle -A PREROUTING -s 192.168.1.6  -d 10.0.0.0/24 -j RETURN
+
+iptables -t mangle -A PREROUTING -s 192.168.1.6  -d 192.168.1.0/24 -j MARK --set-mark 90
+iptables -t mangle -A PREROUTING -s 192.168.1.6  -d 192.168.1.0/24 -j RETURN
+
+
+# Phone
+iptables -t mangle -A PREROUTING -s 192.168.1.5 ! -d 10.0.0.0/24 -j MARK --set-mark 91
+iptables -t mangle -A PREROUTING -s 192.168.1.5 ! -d 10.0.0.0/24 -j RETURN
+iptables -t mangle -A PREROUTING -s 192.168.1.5 ! -d 192.168.1.0/24 -j MARK --set-mark 91
+iptables -t mangle -A PREROUTING -s 192.168.1.5 ! -d 192.168.1.0/24 -j RETURN
+
+# Eive uploads
+tc class add dev eth0 parent 1:90 classid 1:92 htb rate 200kbit ceil 200kbit prio 7
+tc filter add dev eth0 parent 1:0 protocol ip prio 4 handle 92 fw classid 1:92
+
+iptables -t mangle -A PREROUTING -s 192.168.1.20 ! -d 10.0.0.0/24 -j MARK --set-mark 92
+iptables -t mangle -A PREROUTING -s 192.168.1.20 ! -d 10.0.0.0/24 -j RETURN
+iptables -t mangle -A PREROUTING -s 192.168.1.20 ! -d 192.168.1.0/24 -j MARK --set-mark 92
+iptables -t mangle -A PREROUTING -s 192.168.1.20 ! -d 192.168.1.0/24 -j RETURN
+
+iptables -t mangle -A PREROUTING -s 192.168.1.21 ! -d 10.0.0.0/24 -j MARK --set-mark 92
+iptables -t mangle -A PREROUTING -s 192.168.1.21 ! -d 10.0.0.0/24 -j RETURN
+iptables -t mangle -A PREROUTING -s 192.168.1.21 ! -d 192.168.1.0/24 -j MARK --set-mark 92
+iptables -t mangle -A PREROUTING -s 192.168.1.21 ! -d 192.168.1.0/24 -j RETURN
+
+iptables -t mangle -A PREROUTING -s 192.168.1.22 ! -d 10.0.0.0/24 -j MARK --set-mark 92
+iptables -t mangle -A PREROUTING -s 192.168.1.22 ! -d 10.0.0.0/24 -j RETURN
+iptables -t mangle -A PREROUTING -s 192.168.1.22 ! -d 192.168.1.0/24 -j MARK --set-mark 92
+iptables -t mangle -A PREROUTING -s 192.168.1.22 ! -d 192.168.1.0/24 -j RETURN
+
+iptables -t mangle -A PREROUTING -s 192.168.1.23 ! -d 10.0.0.0/24 -j MARK --set-mark 92
+iptables -t mangle -A PREROUTING -s 192.168.1.23 ! -d 10.0.0.0/24 -j RETURN
+iptables -t mangle -A PREROUTING -s 192.168.1.23 ! -d 192.168.1.0/24 -j MARK --set-mark 92
+iptables -t mangle -A PREROUTING -s 192.168.1.23 ! -d 192.168.1.0/24 -j RETURN
+
+# Isac uploads
+tc class add dev eth0 parent 1:90 classid 1:93 htb rate 500kbit ceil 600kbit prio 7
+tc filter add dev eth0 parent 1:0 protocol ip prio 4 handle 93 fw classid 1:93
+
+iptables -t mangle -A PREROUTING -s 192.168.1.7 ! -d 10.0.0.0/24 -j MARK --set-mark 93
+iptables -t mangle -A PREROUTING -s 192.168.1.7 ! -d 10.0.0.0/24 -j RETURN
+iptables -t mangle -A PREROUTING -s 192.168.1.7 ! -d 192.168.1.0/24 -j MARK --set-mark 93
+iptables -t mangle -A PREROUTING -s 192.168.1.7 ! -d 192.168.1.0/24 -j RETURN
+
+iptables -t mangle -A PREROUTING -s 192.168.1.8 ! -d 10.0.0.0/24 -j MARK --set-mark 93
+iptables -t mangle -A PREROUTING -s 192.168.1.8 ! -d 10.0.0.0/24 -j RETURN
+iptables -t mangle -A PREROUTING -s 192.168.1.8 ! -d 192.168.1.0/24 -j MARK --set-mark 93
+iptables -t mangle -A PREROUTING -s 192.168.1.8 ! -d 192.168.1.0/24 -j RETURN
+
+iptables -t mangle -A PREROUTING -s 192.168.1.12 ! -d 10.0.0.0/24 -j MARK --set-mark 93
+iptables -t mangle -A PREROUTING -s 192.168.1.12 ! -d 10.0.0.0/24 -j RETURN
+iptables -t mangle -A PREROUTING -s 192.168.1.12 ! -d 192.168.1.0/24 -j MARK --set-mark 93
+iptables -t mangle -A PREROUTING -s 192.168.1.12 ! -d 192.168.1.0/24 -j RETURN
+
+iptables -t mangle -A PREROUTING -s 192.168.1.13 ! -d 10.0.0.0/24 -j MARK --set-mark 93
+iptables -t mangle -A PREROUTING -s 192.168.1.13 ! -d 10.0.0.0/24 -j RETURN
+iptables -t mangle -A PREROUTING -s 192.168.1.13 ! -d 192.168.1.0/24 -j MARK --set-mark 93
+iptables -t mangle -A PREROUTING -s 192.168.1.13 ! -d 192.168.1.0/24 -j RETURN
+
+
+# Sarah uploads
+tc class add dev eth0 parent 1:90 classid 1:94 htb rate 500kbit ceil 700kbit prio 4
+tc filter add dev eth0 parent 1:0 protocol ip prio 4 handle 94 fw classid 1:94
+
+iptables -t mangle -A PREROUTING -s 192.168.1.50 ! -d 10.0.0.0/24 -j MARK --set-mark 94
+iptables -t mangle -A PREROUTING -s 192.168.1.50 ! -d 10.0.0.0/24 -j RETURN
+iptables -t mangle -A PREROUTING -s 192.168.1.50 ! -d 192.168.1.0/24 -j MARK --set-mark 94
+iptables -t mangle -A PREROUTING -s 192.168.1.50 ! -d 192.168.1.0/24 -j RETURN
+
+iptables -t mangle -A PREROUTING -s 192.168.1.51 ! -d 10.0.0.0/24 -j MARK --set-mark 94
+iptables -t mangle -A PREROUTING -s 192.168.1.51 ! -d 10.0.0.0/24 -j RETURN
+iptables -t mangle -A PREROUTING -s 192.168.1.51 ! -d 192.168.1.0/24 -j MARK --set-mark 94
+iptables -t mangle -A PREROUTING -s 192.168.1.51 ! -d 192.168.1.0/24 -j RETURN
+
+
+# Eliza uploads
+tc class add dev eth0 parent 1:90 classid 1:95 htb rate 500kbit ceil 700kbit prio 7
+tc filter add dev eth0 parent 1:0 protocol ip prio 5 handle 95 fw classid 1:95
+
+iptables -t mangle -A PREROUTING -s 192.168.1.40 ! -d 10.0.0.0/24 -j MARK --set-mark 95
+iptables -t mangle -A PREROUTING -s 192.168.1.40 ! -d 10.0.0.0/24 -j RETURN
+iptables -t mangle -A PREROUTING -s 192.168.1.40 ! -d 192.168.1.0/24 -j MARK --set-mark 95
+iptables -t mangle -A PREROUTING -s 192.168.1.40 ! -d 192.168.1.0/24 -j RETURN
+
+iptables -t mangle -A PREROUTING -s 192.168.1.41 ! -d 10.0.0.0/24 -j MARK --set-mark 95
+iptables -t mangle -A PREROUTING -s 192.168.1.41 ! -d 10.0.0.0/24 -j RETURN
+iptables -t mangle -A PREROUTING -s 192.168.1.41 ! -d 192.168.1.0/24 -j MARK --set-mark 95
+iptables -t mangle -A PREROUTING -s 192.168.1.41 ! -d 192.168.1.0/24 -j RETURN
+
+
+# Media uploads
+tc class add dev eth0 parent 1:90 classid 1:96 htb rate 500kbit ceil 700kbit prio 4
+tc filter add dev eth0 parent 1:0 protocol ip prio 4 handle 96 fw classid 1:96
+
+iptables -t mangle -A PREROUTING -s 192.168.1.30 ! -d 10.0.0.0/24 -j MARK --set-mark 96
+iptables -t mangle -A PREROUTING -s 192.168.1.30 ! -d 10.0.0.0/24 -j RETURN
+iptables -t mangle -A PREROUTING -s 192.168.1.30 ! -d 192.168.1.0/24 -j MARK --set-mark 96
+iptables -t mangle -A PREROUTING -s 192.168.1.30 ! -d 192.168.1.0/24 -j RETURN
+
+iptables -t mangle -A PREROUTING -s 192.168.1.31 ! -d 10.0.0.0/24 -j MARK --set-mark 96
+iptables -t mangle -A PREROUTING -s 192.168.1.31 ! -d 10.0.0.0/24 -j RETURN
+iptables -t mangle -A PREROUTING -s 192.168.1.31 ! -d 192.168.1.0/24 -j MARK --set-mark 96
+iptables -t mangle -A PREROUTING -s 192.168.1.31 ! -d 192.168.1.0/24 -j RETURN
+
+
+
+# Everything else
+
+tc class add dev eth0 parent 1:90 classid 1:99 htb rate 800kbit ceil 800kbit prio 4
+tc filter add dev eth0 parent 1:0 protocol ip prio 4 handle 99 fw classid 1:99
+
+iptables -t mangle -A POSTROUTING -s 192.168.1.10 ! -d 10.0.0.0/24 -j MARK --set-mark 99
 iptables -t mangle -A POSTROUTING -s 192.168.1.10 ! -d 10.0.0.0/24 -j RETURN
 
-iptables -t mangle -A POSTROUTING -s 192.168.1.10 ! -d 192.168.1.0/24 -j MARK --set-mark 90
+iptables -t mangle -A POSTROUTING -s 192.168.1.10 ! -d 192.168.1.0/24 -j MARK --set-mark 99
 iptables -t mangle -A POSTROUTING -s 192.168.1.10 ! -d 192.168.1.0/24 -j RETURN
 
-iptables -t mangle -A POSTROUTING -s 192.168.1.10 ! -d 192.168.2.0/24 -j MARK --set-mark 90
+iptables -t mangle -A POSTROUTING -s 192.168.1.10 ! -d 192.168.2.0/24 -j MARK --set-mark 99
 iptables -t mangle -A POSTROUTING -s 192.168.1.10 ! -d 192.168.2.0/24 -j RETURN
+
+
 
 # isac-laptop 192.168.1.7 
 # isac-playstation 192.168.1.8
